@@ -1,30 +1,27 @@
 #include "ultrasonic.h"
-#include "MKL25Z4.h"
 
 static void start_t(ultrasonic_t *ultrasonic);
 static void update_dist(ultrasonic_t *ultrasonic);
 static void start_trig(ultrasonic_t *ultrasonic);
 
-void ultrasonic_init(ultrasonic_t *ultrasonic, GPIO_Type *trig_base, uint32_t trig_pin, GPIO_Type *echo_base, uint32_t echo_pin, float updateSpeed, float timeout) {
-    ultrasonic->trig_base = trig_base;
+void ultrasonic_init(ultrasonic_t *ultrasonic, uint32_t trig_pin, uint32_t echo_pin, float updateSpeed, float timeout) {
     ultrasonic->trig_pin = trig_pin;
-    ultrasonic->echo_base = echo_base;
     ultrasonic->echo_pin = echo_pin;
     ultrasonic->updateSpeed = updateSpeed;
     ultrasonic->timeout = timeout;
     ultrasonic->done = 0;
 
-    // Initialize GPIO pins
-    SIM->SCGC5 |= SIM_SCGC5_PORTA_MASK | SIM_SCGC5_PORTC_MASK;  // Enable clock for PORTA and PORTC
+    // Enable clock for ports
+    SIM->SCGC5 |= SIM_SCGC5_PORTA_MASK | SIM_SCGC5_PORTC_MASK;
 
     // Configure trigger pin as output
     PORTC->PCR[trig_pin] = PORT_PCR_MUX(1);
-    trig_base->PDDR |= (1U << trig_pin);
-    trig_base->PCOR |= (1U << trig_pin);
+    GPIOC->PDDR |= (1U << trig_pin);
+    GPIOC->PCOR |= (1U << trig_pin);
 
     // Configure echo pin as input
-    PORTA->PCR[echo_pin] = PORT_PCR_MUX(1) | PORT_PCR_IRQC(0x0A); // Interrupt on rising edge
-    echo_base->PDDR &= ~(1U << echo_pin);
+    PORTA->PCR[echo_pin] = PORT_PCR_MUX(1) | PORT_PCR_IRQC(0x09); // Interrupt on rising edge
+    GPIOA->PDDR &= ~(1U << echo_pin);
 
     // Enable TPM0 clock
     SIM->SCGC6 |= SIM_SCGC6_TPM0_MASK;
@@ -39,8 +36,8 @@ void ultrasonic_init(ultrasonic_t *ultrasonic, GPIO_Type *trig_base, uint32_t tr
     TPM0->SC |= TPM_SC_CMOD(1);  // Start TPM0
 }
 
-void ultrasonic_init_with_callback(ultrasonic_t *ultrasonic, GPIO_Type *trig_base, uint32_t trig_pin, GPIO_Type *echo_base, uint32_t echo_pin, float updateSpeed, float timeout, ultrasonic_callback_t onUpdate) {
-    ultrasonic_init(ultrasonic, trig_base, trig_pin, echo_base, echo_pin, updateSpeed, timeout);
+void ultrasonic_init_with_callback(ultrasonic_t *ultrasonic, uint32_t trig_pin, uint32_t echo_pin, float updateSpeed, float timeout, ultrasonic_callback_t onUpdate) {
+    ultrasonic_init(ultrasonic, trig_pin, echo_pin, updateSpeed, timeout);
     ultrasonic->onUpdateMethod = onUpdate;
 }
 
@@ -91,9 +88,9 @@ static void update_dist(ultrasonic_t *ultrasonic) {
 }
 
 static void start_trig(ultrasonic_t *ultrasonic) {
-    ultrasonic->trig_base->PSOR |= (1U << ultrasonic->trig_pin);  // Set trigger pin high
+    GPIOC->PSOR |= (1U << ultrasonic->trig_pin);  // Set trigger pin high
     for (volatile int i = 0; i < 1000; i++);  // Delay
-    ultrasonic->trig_base->PCOR |= (1U << ultrasonic->trig_pin);  // Set trigger pin low
+    GPIOC->PCOR |= (1U << ultrasonic->trig_pin);  // Set trigger pin low
 
     NVIC_EnableIRQ(PORTA_IRQn);  // Enable echo pin interrupts
 }

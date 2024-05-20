@@ -1,24 +1,25 @@
 #include "MKL25Z4.h"
-#include "fsl_debug_console.h"
-#include "board.h"
 #include "ultrasonic.h"
 
 void dist(int distance) {
-    PRINTF("Distance: %d cm\n", distance / 10);
+    printf("Distance: %d cm\n", distance / 10);
 }
 
 int main(void) {
-    BOARD_InitPins();
-    BOARD_BootClockRUN();
-    BOARD_InitDebugConsole();
+    // Initialize system
+    SIM->SCGC5 |= SIM_SCGC5_PORTA_MASK | SIM_SCGC5_PORTC_MASK;  // Enable clock for PORTA and PORTC
+    SIM->SOPT2 |= SIM_SOPT2_PLLFLLSEL_MASK | SIM_SOPT2_TPMSRC(1); // Select PLLFLLCLK as TPM clock source
+
+    // Initialize debug console
+    // Initialize UART for printf (if not already initialized)
 
     ultrasonic_t mu;
-    ultrasonic_init_with_callback(&mu, GPIOC, 16U, GPIOA, 1U, 0.1, 1.0, dist);
+    ultrasonic_init_with_callback(&mu, 16U, 1U, 0.1, 1.0, dist);
     ultrasonic_start_updates(&mu);
 
     while (1) {
         int distance = ultrasonic_get_current_distance(&mu);
-        PRINTF("Current distance: %d cm\n", distance / 10);
+        printf("Current distance: %d cm\n", distance / 10);
         ultrasonic_check_distance(&mu);
         for (volatile int i = 0; i < 1000000; i++);
     }
