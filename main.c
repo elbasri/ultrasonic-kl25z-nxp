@@ -1,25 +1,19 @@
-#include "fsl_device_registers.h"
+#include "MKL25Z4.h"
 #include "fsl_debug_console.h"
 #include "board.h"
-#include "fsl_gpio.h"
-#include "fsl_port.h"
-#include "clock_config.h"
-#include "pin_mux.h"
 #include "ultrasonic.h"
 
 void dist(int distance) {
     PRINTF("Distance: %d cm\n", distance / 10);
 }
 
-int main() {
-    ultrasonic_t mu;
-    
+int main(void) {
     BOARD_InitPins();
     BOARD_BootClockRUN();
     BOARD_InitDebugConsole();
 
-    ultrasonic_init_with_callback(&mu, GPIOC, 16U, GPIOA, 1U, TPM0, 1U, 0.1, 1.0, dist);
-
+    ultrasonic_t mu;
+    ultrasonic_init_with_callback(&mu, GPIOC, 16U, GPIOA, 1U, 0.1, 1.0, dist);
     ultrasonic_start_updates(&mu);
 
     while (1) {
