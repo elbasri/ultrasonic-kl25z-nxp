@@ -1,5 +1,6 @@
 #include "MKL25Z4.h"
 #include "ultrasonic.h"
+#include <stdio.h> // Include this for printf
 
 void dist(int distance) {
     printf("Distance: %d cm\n", distance / 10);
@@ -7,8 +8,8 @@ void dist(int distance) {
 
 int main(void) {
     // Initialize system
-    SIM->SCGC5 |= SIM_SCGC5_PORTA_MASK | SIM_SCGC5_PORTC_MASK;  // Enable clock for PORTA and PORTC
-    SIM->SOPT2 |= SIM_SOPT2_PLLFLLSEL_MASK | SIM_SOPT2_TPMSRC(1); // Select PLLFLLCLK as TPM clock source
+    SIM_SCGC5 |= SIM_SCGC5_PORTA_MASK | SIM_SCGC5_PORTC_MASK;  // Enable clock for PORTA and PORTC
+    SIM_SOPT2 |= SIM_SOPT2_PLLFLLSEL_MASK | SIM_SOPT2_TPMSRC(1); // Select PLLFLLCLK as TPM clock source
 
     // Initialize debug console
     // Initialize UART for printf (if not already initialized)
