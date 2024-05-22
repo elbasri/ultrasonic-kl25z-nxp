@@ -1,5 +1,5 @@
 #include "ultrasonic.h"
-#include "MKL25Z4.h" // Make sure this is included for the register definitions
+#include "MKL25Z4.h"
 
 // Forward declarations of static functions
 static void start_t(ultrasonic_t *ultrasonic);
@@ -20,28 +20,28 @@ void ultrasonic_init(ultrasonic_t *ultrasonic, uint32_t trig_pin, uint32_t echo_
     ultrasonic_instance = ultrasonic;
 
     // Enable clock for ports
-    SIM_SCGC5 |= (SIM_SCGC5_PORTA_MASK | SIM_SCGC5_PORTC_MASK);
+    SIM->SCGC5 |= (SIM_SCGC5_PORTA_MASK | SIM_SCGC5_PORTC_MASK);
 
     // Configure trigger pin as output
-    PORTC_PCR[trig_pin] = PORT_PCR_MUX(1);
-    GPIOC_PDDR |= (1U << trig_pin);
-    GPIOC_PCOR |= (1U << trig_pin);
+    PORTC->PCR[trig_pin] = PORT_PCR_MUX(1);
+    GPIOC->PDDR |= (1U << trig_pin);
+    GPIOC->PCOR |= (1U << trig_pin);
 
     // Configure echo pin as input
-    PORTA_PCR[echo_pin] = PORT_PCR_MUX(1) | PORT_PCR_IRQC(0x09); // Interrupt on rising edge
-    GPIOA_PDDR &= ~(1U << echo_pin);
+    PORTA->PCR[echo_pin] = PORT_PCR_MUX(1) | PORT_PCR_IRQC(0x09); // Interrupt on rising edge
+    GPIOA->PDDR &= ~(1U << echo_pin);
 
     // Enable TPM0 clock
-    SIM_SCGC6 |= SIM_SCGC6_TPM0_MASK;
-    SIM_SOPT2 |= SIM_SOPT2_TPMSRC(1); // Select MCGFLLCLK clock or MCGPLLCLK/2
+    SIM->SCGC6 |= SIM_SCGC6_TPM0_MASK;
+    SIM->SOPT2 |= SIM_SOPT2_TPMSRC(1); // Select MCGFLLCLK clock or MCGPLLCLK/2
 
-    TPM0_SC = 0;  // Disable TPM0 while configuring
-    TPM0_MOD = 0xFFFF;  // Set modulo value
-    TPM0_SC = TPM_SC_PS(7);  // Prescaler /128
-    TPM0_SC |= TPM_SC_TOIE_MASK;  // Enable overflow interrupt
+    TPM0->SC = 0;  // Disable TPM0 while configuring
+    TPM0->MOD = 0xFFFF;  // Set modulo value
+    TPM0->SC = TPM_SC_PS(7);  // Prescaler /128
+    TPM0->SC |= TPM_SC_TOIE_MASK;  // Enable overflow interrupt
     NVIC_EnableIRQ(TPM0_IRQn);  // Enable TPM0 interrupt in NVIC
 
-    TPM0_SC |= TPM_SC_CMOD(1);  // Start TPM0
+    TPM0->SC |= TPM_SC_CMOD(1);  // Start TPM0
 }
 
 void ultrasonic_init_with_callback(ultrasonic_t *ultrasonic, uint32_t trig_pin, uint32_t echo_pin, float updateSpeed, float timeout, ultrasonic_callback_t onUpdate) {
@@ -86,41 +86,41 @@ void ultrasonic_check_distance(ultrasonic_t *ultrasonic) {
 }
 
 static void start_t(ultrasonic_t *ultrasonic) {
-    ultrasonic->start = TPM0_CNT;
+    ultrasonic->start = TPM0->CNT;
 }
 
 static void update_dist(ultrasonic_t *ultrasonic) {
-    ultrasonic->end = TPM0_CNT;
+    ultrasonic->end = TPM0->CNT;
     ultrasonic->done = 1;
     ultrasonic->distance = (ultrasonic->end - ultrasonic->start) / 6;
 }
 
 static void start_trig(ultrasonic_t *ultrasonic) {
-    GPIOC_PSOR |= (1U << ultrasonic->trig_pin);  // Set trigger pin high
+    GPIOC->PSOR |= (1U << ultrasonic->trig_pin);  // Set trigger pin high
     for (volatile int i = 0; i < 1000; i++);  // Delay
-    GPIOC_PCOR |= (1U << ultrasonic->trig_pin);  // Set trigger pin low
+    GPIOC->PCOR |= (1U << ultrasonic->trig_pin);  // Set trigger pin low
 
     NVIC_EnableIRQ(PORTA_IRQn);  // Enable echo pin interrupts
 }
 
 void PORTA_IRQHandler(void) {
-    if (PORTA_ISFR & (1U << ultrasonic_instance->echo_pin)) {  // Check if interrupt occurred on echo pin
-        PORTA_ISFR |= (1U << ultrasonic_instance->echo_pin);  // Clear interrupt flag
+    if (PORTA->ISFR & (1U << ultrasonic_instance->echo_pin)) {  // Check if interrupt occurred on echo pin
+        PORTA->ISFR |= (1U << ultrasonic_instance->echo_pin);  // Clear interrupt flag
         // Handle echo pin interrupt
         static int isRisingEdge = 1;
         if (isRisingEdge) {
             start_t(ultrasonic_instance);
-            PORTA_PCR[ultrasonic_instance->echo_pin] = (PORTA_PCR[ultrasonic_instance->echo_pin] & ~PORT_PCR_IRQC_MASK) | PORT_PCR_IRQC(0x0A);  // Falling edge
+            PORTA->PCR[ultrasonic_instance->echo_pin] = (PORTA->PCR[ultrasonic_instance->echo_pin] & ~PORT_PCR_IRQC_MASK) | PORT_PCR_IRQC(0x0A);  // Falling edge
         } else {
             update_dist(ultrasonic_instance);
-            PORTA_PCR[ultrasonic_instance->echo_pin] = (PORTA_PCR[ultrasonic_instance->echo_pin] & ~PORT_PCR_IRQC_MASK) | PORT_PCR_IRQC(0x09);  // Rising edge
+            PORTA->PCR[ultrasonic_instance->echo_pin] = (PORTA->PCR[ultrasonic_instance->echo_pin] & ~PORT_PCR_IRQC_MASK) | PORT_PCR_IRQC(0x09);  // Rising edge
         }
         isRisingEdge = !isRisingEdge;
     }
 }
 
 void TPM0_IRQHandler(void) {
-    if (TPM0_SC & TPM_SC_TOF_MASK) {
-        TPM0_SC &= ~TPM_SC_TOF_MASK;  // Clear overflow flag
+    if (TPM0->SC & TPM_SC_TOF_MASK) {
+        TPM0->SC &= ~TPM_SC_TOF_MASK;  // Clear overflow flag
     }
 }
